@@ -46,23 +46,43 @@ bound_low = [0,0]; bound_high = [0,0]
 
 # Main FDTD Loop
 for t in range(0,time_steps,1):
-    # Updating H-boundry (low)
-    bound_low[0] = bound_low[1]; bound_low[1] = Hy[t,0]
-    print(bound_low[0])
-    # Hy field calculation
-    for k in range(0,Nz-2,1):
-        Hy[t+1,k] = Hy[t,k] + m_Hy*((Ex[t,k+1]-Ex[t,k])/dz)
-    Hy[t+1,Nz-1] = Hy[t,Nz-1] + m_Hy*((bound_high[0] - Ex[t,Nz-1])/dz)
+    if t%2 == 0:
+        # Updating H-boundry (low)
+        bound_low[0] = bound_low[1]; bound_low[1] = Hy[t,0]
+        print(bound_low[0])
+        # Hy field calculation
+        for k in range(0,Nz-2,1):
+            Hy[t+1,k] = Hy[t,k] + m_Hy*((Ex[t,k+1]-Ex[t,k])/dz)
+        Hy[t+1,Nz-1] = Hy[t,Nz-1] + m_Hy*((bound_high[0] - Ex[t,Nz-1])/dz)
 
-    # Update E-boundry 
-    bound_high[0] = bound_high[1]; bound_high[1] = Ex[t,Nz-1]
-    # Ex field calculation
-    Ex[t+1,0] = Ex[t,0] + m_Ex*((Hy[t,0] - bound_low[0])/dz)
-    for k in range(1,Nz-1,1):
-        Ex[t+1,k] = Ex[t,k] + m_Ex*((Hy[t,k] - Hy[t,k-1])/dz)
+        # Update E-boundry 
+        #bound_high[0] = bound_high[1]; bound_high[1] = Ex[t,Nz-1]
+        # Ex field calculation
+        Ex[t+1,0] = Ex[t,0]# + m_Ex*((Hy[t,0] - bound_low[0])/dz)
+        for k in range(1,Nz-1,1):
+            Ex[t+1,k] = Ex[t,k]# + m_Ex*((Hy[t,k] - Hy[t,k-1])/dz)
     
-    # Inject source
-    Ex[t+1,nzpulse] = Ex[t,nzpulse] + pulse(t)
+        # Inject source
+        Ex[t+1,nzpulse] = pulse(t) # Ex[t,nzpulse] + 
+    
+    else:
+        # Updating H-boundry (low)
+        bound_low[0] = bound_low[1]; bound_low[1] = Hy[t,0]
+        #print(bound_low[0])
+        # Hy field calculation
+        for k in range(0,Nz-2,1):
+            Hy[t+1,k] = Hy[t,k] #+ m_Hy*((Ex[t,k+1]-Ex[t,k])/dz)
+        Hy[t+1,Nz-1] = Hy[t,Nz-1] #+ m_Hy*((bound_high[0] - Ex[t,Nz-1])/dz)
+
+        # Update E-boundry 
+        bound_high[0] = bound_high[1]; bound_high[1] = Ex[t,Nz-1]
+        # Ex field calculation
+        Ex[t+1,0] = Ex[t,0] + m_Ex*((Hy[t,0] - bound_low[0])/dz)
+        for k in range(1,Nz-1,1):
+            Ex[t+1,k] = Ex[t,k] + m_Ex*((Hy[t,k] - Hy[t,k-1])/dz)
+        
+        # Inject source
+        Ex[t+1,nzpulse] = pulse(t) #Ex[t,nzpulse] + 
 #%%
 
 z = np.arange(0,10,0.1)
