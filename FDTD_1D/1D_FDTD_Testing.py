@@ -24,7 +24,7 @@ Nz = int((wavelength*10)/dz)
 # Pulse Params
 tau = 0.5/300000000 # 0.5/fmax
 t0 = 6*tau
-nzpulse = 1 #int(Nz/2)
+nzpulse = int(Nz/2)
 def pulse(t):
     return np.exp(-(((t*dt-t0)/tau)**2))
 
@@ -88,12 +88,12 @@ for t in range(0,time_steps,1):
 z = np.arange(0,Nz*dz,dz)
 
 fps = 60
-duration = time_steps/fps
+duration = time_steps/(fps*10)
 fig, ax = plt.subplots()
 
 def make_frame(anim_time):
 
-    time_step = anim_time*fps
+    time_step = anim_time*fps*10
     ax.clear()
 
     ax.plot(z, Ex[int(time_step),:])
@@ -109,6 +109,21 @@ animation.ipython_display(fps = fps, loop = True, autoplay = True)
 
 #%%
 
-#t = np.arange(0,time_steps,1)
+'''t = np.arange(0,time_steps,1)
+g = pulse(t)
+plt.plot(t,g)
+plt.xlabel('Time Step')
+plt.ylabel('Amplitude')
+plt.title('Gaussian Pluck - Time Step Domain')
+
+#%%
+G = np.fft.rfft(g)
+f = np.arange(0,time_steps/2+1)*((1/dt)/time_steps)
+plt.plot(f,np.abs(G))
+plt.xlim(0,1e9)
+plt.xlabel('Frequency (1e9)')
+plt.ylabel('Power')
+plt.title('Gaussian Pluck - Frequency Domain')
 #plt.plot(t,pulse(t))
-#plt.show()
+#plt.show()'''
+# %%
