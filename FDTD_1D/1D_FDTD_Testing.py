@@ -87,11 +87,7 @@ for t in range(0,time_steps,1):
 
 z = np.arange(0,Nz*dz,dz)
 
-<<<<<<< HEAD
-fps = 60
-=======
 fps = 30
->>>>>>> 4195acfa7d3cdd20f5dce1f7c6139203a0fbf42f
 duration = time_steps/(fps*10)
 fig, ax = plt.subplots()
 
