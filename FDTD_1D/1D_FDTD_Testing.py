@@ -79,7 +79,7 @@ for t in range(0,time_steps,1):
         for k in range(1,Nz-1,1):
             Ex[t+1,k] = Ex[t,k] + m_Ex*((Hy[t,k] - Hy[t,k-1])/dz)
         
-    
+
     # Inject source
     Ex[t+1,nzpulse-1] = Ex[t+1,nzpulse-1] + pulse(t+1)
     print(Ex[t,nzpulse-1])
@@ -87,7 +87,11 @@ for t in range(0,time_steps,1):
 
 z = np.arange(0,Nz*dz,dz)
 
+<<<<<<< HEAD
 fps = 60
+=======
+fps = 30
+>>>>>>> 4195acfa7d3cdd20f5dce1f7c6139203a0fbf42f
 duration = time_steps/(fps*10)
 fig, ax = plt.subplots()
 
