@@ -48,41 +48,37 @@ bound_low = [0,0]; bound_high = [0,0]
 # Main FDTD Loop
 for t in range(0,time_steps,1):
     if t%2 == 0:
-        # Updating H-boundry (low)
-        #bound_low[0] = bound_low[1]; bound_low[1] = Hy[t,0]
-        #print(bound_low[0])
-        # Hy field calculation
-        for k in range(0,Nz-2,1):
+        
+        # Magnetic Field Update (t+dt/2) 
+        for k in range(0,Nz-1,1):
             Hy[t+1,k] = Hy[t,k] + m_Hy*((Ex[t,k+1]-Ex[t,k])/dz)
         Hy[t+1,Nz-1] = Hy[t,Nz-1] + m_Hy*((bound_high[0] - Ex[t,Nz-1])/dz)
 
-        # Update E-boundry 
-        #bound_high[0] = bound_high[1]; bound_high[1] = Ex[t,Nz-1]
-        # Ex field calculation
-        Ex[t+1,0] = Ex[t,0]# + m_Ex*((Hy[t,0] - bound_low[0])/dz)
-        for k in range(1,Nz-1,1):
-            Ex[t+1,k] = Ex[t,k]# + m_Ex*((Hy[t,k] - Hy[t,k-1])/dz)
+        # Lower Boundry Update (t-dt/2)
+        bound_low[0] = bound_low[1]; bound_low[1] = Hy[t,0]
+
+        # Ex Field Constant
+        Ex[t+1,0] = Ex[t,0]
+        for k in range(1,Nz,1):
+            Ex[t+1,k] = Ex[t,k]
     
     else:
-        # Updating H-boundry (low)
-        #bound_low[0] = bound_low[1]; bound_low[1] = Hy[t,0]
-        #print(bound_low[0])
-        # Hy field calculation
-        for k in range(0,Nz-2,1):
-            Hy[t+1,k] = Hy[t,k] #+ m_Hy*((Ex[t,k+1]-Ex[t,k])/dz)
-        Hy[t+1,Nz-1] = Hy[t,Nz-1] #+ m_Hy*((bound_high[0] - Ex[t,Nz-1])/dz)
 
-        # Update E-boundry 
-        #bound_high[0] = bound_high[1]; bound_high[1] = Ex[t,Nz-1]
-        # Ex field calculation
+        # Hy Field Constant
+        for k in range(0,Nz-1,1):
+            Hy[t+1,k] = Hy[t,k]
+        Hy[t+1,Nz-1] = Hy[t,Nz-1]
+        
+        # Ex Fied Update (t+dt)
         Ex[t+1,0] = Ex[t,0] + m_Ex*((Hy[t,0] - bound_low[0])/dz)
-        for k in range(1,Nz-1,1):
+        for k in range(1,Nz,1):
             Ex[t+1,k] = Ex[t,k] + m_Ex*((Hy[t,k] - Hy[t,k-1])/dz)
         
+        # Upper Boundry Update (t)
+        bound_high[0] = bound_high[1]; bound_high[1] = Ex[t,Nz-1]
 
     # Inject source
     Ex[t+1,nzpulse-1] = Ex[t+1,nzpulse-1] + pulse(t+1)
-    print(Ex[t,nzpulse-1])
 #%%
 
 z = np.arange(0,Nz*dz,dz)
@@ -108,13 +104,14 @@ animation.ipython_display(fps = fps, loop = True, autoplay = True)
 
 
 #%%
-
-'''t = np.arange(0,time_steps,1)
+# Fast Fourier Transform for Gaussian Pulse
+'''
+t = np.arange(0,time_steps,1)
 g = pulse(t)
 plt.plot(t,g)
 plt.xlabel('Time Step')
 plt.ylabel('Amplitude')
-plt.title('Gaussian Pluck - Time Step Domain')
+plt.title('Gaussian Pulse - Time Step Domain')
 
 #%%
 G = np.fft.rfft(g)
@@ -123,7 +120,8 @@ plt.plot(f,np.abs(G))
 plt.xlim(0,1e9)
 plt.xlabel('Frequency (1e9)')
 plt.ylabel('Power')
-plt.title('Gaussian Pluck - Frequency Domain')
+plt.title('Gaussian Pulse - Frequency Domain')
 #plt.plot(t,pulse(t))
-#plt.show()'''
+#plt.show()
+'''
 # %%
