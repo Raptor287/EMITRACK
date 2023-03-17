@@ -75,8 +75,11 @@ for t in range(0,time_steps,1):
     #bound_high[0] = bound_high[1]; bound_high[1] = Ex[t,Nz-1]
 
 timer_end = time.time()
-with open("Samples/Timer.txt", "a") as f:
-    print("Execution on", time.strftime("%d %b %Y at %H:%M:%S took", time.localtime()), timer_end - timer_start, "seconds\n", file=f)
+print("Execution took:", timer_end-timer_start, "seconds.")
+
+# Timer logging below as required for analysis 
+#with open("Samples/Timer.txt", "a") as f:
+#    print("Execution on", time.strftime("%d %b %Y at %H:%M:%S took", time.localtime()), timer_end - timer_start, "seconds.", file=f)
 #%%
 
 # A potential data output method. This plots the magnitude of E at a constant position over time
