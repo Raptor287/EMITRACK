@@ -27,9 +27,8 @@ Nz = int((wavelength*10)/dz)
 
 
 # Time Params
-# dt such that the wave propogates one cell in 2 time steps; tprop is approximate propogation time across the grid.
-dt = dz/(2*c0)
-tprop = (Nz*dz)/c0
+dt = dz/(2*c0)                                      # dt such that the wave propogates one cell in 2 time steps
+tprop = (Nz*dz)/c0                                  # tprop is the approximate time for propogation across the grid
 
 # Pulse Params
 tau = 0.5/300000000                                 # 0.5/fmax, spread of pulse
@@ -37,22 +36,21 @@ t0 = 6*tau                                          # Time offset to ease into p
 nzpulse = int(Nz/4) - 1                             # Location of pulse, array index friendly
 H_scale = 1                                         # sqrt(e_rel/u_rel), normalization of 'Hy' source due to derivation of update Eqs
 H_offset = dz/(2*c0) - 0.5*dt                       # (n_source*dz)/(2*c0) - (delta_t/2), 'Hy' source offset due to time/grid offset
-                                                        # There is likely an issue here. The offset works, but I cannot explain it
 def pulse(t,Offset):
     return np.exp(-(((t*dt-t0+Offset)/tau)**2))
 
 # Iteration Number Calculation
-time_steps = int(np.ceil((12*tau + 3*tprop)/dt))  # time_steps is iterations to ease into and out of source and propogate 3 times.
+time_steps = int(np.ceil((12*tau + 3*tprop)/dt))    # time_steps is iterations required to ease into and out of source and propogate accross the grid 3 times.
 cin = input("The calculated timesteps was "+str(time_steps)+". Would you like to use this? (y or new time_steps): ")
 if cin != "y":
     time_steps = int(cin)
 else: time_steps = int(time_steps)
 
 # Update Coefficients
-m_Ex = c0*dt/1 # c0*dt/eps_xx
-m_Hy = c0*dt/1 # c0*dt/mu_yy
-# note eps_xx and mu_yy are relative to e0 and u0
-# also note, it might be possible to include dz in this calculation
+m_Ex = c0*dt/1                                      # c0*dt/eps_xx
+m_Hy = c0*dt/1                                      # c0*dt/mu_yy
+# Note: eps_xx and mu_yy are relative to e0 and u0
+# Also note: it might be possible to include dz in this calculation
 
 # Initializing Fields and Boundries
 Ex = np.zeros((time_steps+1,Nz)); Hy = np.zeros((time_steps+1,Nz))
@@ -60,19 +58,19 @@ bound_low = [0,0]; bound_high = [0,0]
 
 # Main FDTD Loop
 for t in range(0,time_steps,1):
-    # Magnetic Field Update (t+dt/2) 
+    # Magnetic Field Update in y dir. Note: Hy[t+1] = Hy(t+dt/2) 
     for k in range(0,Nz-1,1):
-         Hy[t+1,k] = Hy[t,k] - m_Hy*((Ex[t,k+1]-Ex[t,k])/dz)                # Standard Hy update
-    Hy[t+1,Nz-1] = Hy[t,Nz-1] - m_Hy*((bound_high[0] - Ex[t,Nz-1])/dz)      # Hy update at end of grid
-    Hy[t+1,nzpulse-1] = Hy[t+1,nzpulse-1] + m_Hy*(pulse(t,0)/dz)            # TF/SF pulse. Pulse is subtracted from Ex[t,nzpulse]. Note the 't-2'.
+         Hy[t+1,k] = Hy[t,k] - m_Hy*((Ex[t,k+1]-Ex[t,k])/dz)                    # Standard Hy update
+    Hy[t+1,Nz-1] = Hy[t,Nz-1] - m_Hy*((bound_high[0] - Ex[t,Nz-1])/dz)          # Hy update at end of grid
+    Hy[t+1,nzpulse-1] = Hy[t+1,nzpulse-1] + m_Hy*(pulse(t,0)/dz)                # TF/SF pulse. Pulse is subtracted from Ex[t,nzpulse].
     # Lower Boundry Update (t-dt/2)
     #bound_low[0] = bound_low[1]; bound_low[1] = Hy[t,0]
 
-    # Ex Fied Update (t+dt)
+    # Electric Fied Update in x dir. Note: Ex[t+1] = Ex(t+dt)
     Ex[t+1,0] = Ex[t,0] - m_Ex*((Hy[t+1,0] - bound_low[0])/dz)                  # Ex update at beginning of grid
     for k in range(1,Nz,1):
         Ex[t+1,k] = Ex[t,k] - m_Ex*((Hy[t+1,k] - Hy[t+1,k-1])/dz)               # Standard update
-    Ex[t+1,nzpulse] = Ex[t+1,nzpulse] + m_Ex*(H_scale*pulse(t+1,H_offset)/dz)   # TF/SF pulse. Pulse is added to Hy[t,nzpulse-1]
+    Ex[t+1,nzpulse] = Ex[t+1,nzpulse] + m_Ex*(H_scale*pulse(t+1,H_offset)/dz)   # TF/SF pulse. Pulse is added to Hy[t+1,nzpulse-1]. Note: 'Hy[t+1,:]' is 'Hy' evaluated at 't+dt/2'
     # Upper Boundry Update (t)
     #bound_high[0] = bound_high[1]; bound_high[1] = Ex[t,Nz-1]
 
