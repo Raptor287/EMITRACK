@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import time
 
+from numba import jit
+
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from moviepy.editor import VideoClip
@@ -50,8 +52,8 @@ dx = dy = delta_wave                                     # Temporarily setting d
 # Building Grid
 
 ## Determining Grid Size
-Nx = 200
-Ny = 200
+Nx = 500
+Ny = 500
 
 ## Building Grid
 xa = np.linspace(0,Nx-1,Nx)
@@ -122,66 +124,69 @@ Hx = np.zeros((Nx,Ny)); Hy = np.zeros((Nx,Ny));
 CHz = np.zeros((Nx,Ny))
 
 ## Electric Fields
-EzTime = np.zeros((int(time_steps/10)+1,Nx,Ny))#,dtype=np.single)
+EzTime = np.zeros((int(time_steps/10)+1,Nx,Ny),dtype=np.single)
 Ez = np.zeros((Nx,Ny)); Dz = np.zeros((Nx,Ny))
 CEx = np.zeros((Nx,Ny)); CEy = np.zeros((Nx,Ny))
 
 
 # Main FDTD Loop
-for t in range(0,time_steps+1,1):
+@jit(nopython=True)
+def FDTD_Loop(EzTime,Ez,Dz,CEx,CEy,Hx,Hy,CHz):
+    for t in range(0,time_steps+1,1):
 
-    # Magnetic Field Update
+        # Magnetic Field Update
 
-    ## Ex and Ey Curl Updates
-    for i in range(0,Nx,1):
-        for j in range(0,Ny-1,1):
-            CEx[i,j] = (Ez[i,j+1] - Ez[i,j])/dy
-        CEx[i,Ny-1] = (0 - Ez[i,Ny-1])/dy
-    
-    for j in range(0,Ny,1):
-        for i in range(0,Nx-1,1):
-            CEy[i,j] = - (Ez[i+1,j] - Ez[i,j])/dx
-        CEy[Nx-1,j] = - (0 - Ez[Nx-1,j])/dx
-
-    ## Hx and Hy Updates
-    for i in range(0,Nx,1):
+        ## Ex and Ey Curl Updates
+        for i in range(0,Nx,1):
+            for j in range(0,Ny-1,1):
+                CEx[i,j] = (Ez[i,j+1] - Ez[i,j])/dy
+            CEx[i,Ny-1] = (0 - Ez[i,Ny-1])/dy
+        
         for j in range(0,Ny,1):
-            Hx[i,j] = Hx[i,j] - m_Hx[i,j]*CEx[i,j]
-            Hy[i,j] = Hy[i,j] - m_Hy[i,j]*CEy[i,j]
-    
-    # Electric Field Update
+            for i in range(0,Nx-1,1):
+                CEy[i,j] = - (Ez[i+1,j] - Ez[i,j])/dx
+            CEy[Nx-1,j] = - (0 - Ez[Nx-1,j])/dx
 
-    ## Hz Curl Update
-    ### 0 Corner Update
-    CHz[0,0] = (Hy[0,0] - 0)/dx - (Hx[0,0] - 0)/dy
-    ### y=0 Row Update
-    for i in range(1,Nx,1):
-        CHz[i,0] = (Hy[i,0] - Hy[i-1,0])/dx - (Hx[i,0] - 0)/dy
-    ### Remaining Grid Update
-    for j in range(1,Ny,1):
-        CHz[0,j] = (Hy[0,j] - 0)/dx - (Hx[0,j] - Hx[0,j-1])/dy
-        for i in range(1,Nx,1):
-            CHz[i,j] = (Hy[i,j] - Hy[i-1,j])/dx - (Hx[i,j] - Hx[i,j-1])/dy
-
-    ## Dz Field Update
-    for i in range(0,Nx,1):
-        for j in range(0,Ny,1):
-            Dz[i,j] = Dz[i,j] + m_Dz*CHz[i,j]
-    
-    Dz[int(Nx/4),int(Ny/4)] = Dz[int(Nx/4),int(Ny/4)] + E_source[t]
-
-    ## Ez Field Update
-    for i in range(0,Nx,1):
-        for j in range(0,Ny,1):
-            Ez[i,j] = (1/eps_zz[i,j])*Dz[i,j]
-
-    # Ez Field Storage
-    if t%10 == 0:
+        ## Hx and Hy Updates
         for i in range(0,Nx,1):
             for j in range(0,Ny,1):
-                EzTime[int(t/10),i,j] = Ez[i,j]
-        print(t)
+                Hx[i,j] = Hx[i,j] - m_Hx[i,j]*CEx[i,j]
+                Hy[i,j] = Hy[i,j] - m_Hy[i,j]*CEy[i,j]
+        
+        # Electric Field Update
 
+        ## Hz Curl Update
+        ### 0 Corner Update
+        CHz[0,0] = (Hy[0,0] - 0)/dx - (Hx[0,0] - 0)/dy
+        ### y=0 Row Update
+        for i in range(1,Nx,1):
+            CHz[i,0] = (Hy[i,0] - Hy[i-1,0])/dx - (Hx[i,0] - 0)/dy
+        ### Remaining Grid Update
+        for j in range(1,Ny,1):
+            CHz[0,j] = (Hy[0,j] - 0)/dx - (Hx[0,j] - Hx[0,j-1])/dy
+            for i in range(1,Nx,1):
+                CHz[i,j] = (Hy[i,j] - Hy[i-1,j])/dx - (Hx[i,j] - Hx[i,j-1])/dy
+
+        ## Dz Field Update
+        for i in range(0,Nx,1):
+            for j in range(0,Ny,1):
+                Dz[i,j] = Dz[i,j] + m_Dz*CHz[i,j]
+        
+        Dz[int(Nx/4),int(Ny/4)] = Dz[int(Nx/4),int(Ny/4)] + E_source[t]
+
+        ## Ez Field Update
+        for i in range(0,Nx,1):
+            for j in range(0,Ny,1):
+                Ez[i,j] = (1/eps_zz[i,j])*Dz[i,j]
+
+        # Ez Field Storage
+        if t%10 == 0:
+            for i in range(0,Nx,1):
+                for j in range(0,Ny,1):
+                    EzTime[int(t/10),i,j] = Ez[i,j]
+            print(t)
+    return
+FDTD_Loop(EzTime,Ez,Dz,CEx,CEy,Hx,Hy,CHz)
 timer_end = time.time()
 print("Program took:", timer_end-timer_start-timer_delay[2], "seconds.")
 
@@ -236,7 +241,7 @@ def make_frame(anim_time):
 
     ax.clear()
     #ax.plot(x, EzTime[int(time_step),:,49])
-    im = ax.imshow(EzTime[int(time_step),:,:], cmap='jet')
+    im = ax.imshow(EzTime[int(time_step),:,:], cmap='jet', vmin=-0.05, vmax=0.05)
     ax.set_title("Timestep = "+str(round(time_step*10)))
     fig.colorbar(im, cax=cax, orientation='vertical')
 
