@@ -52,17 +52,21 @@ dx = dy = delta_wave                                     # Temporarily setting d
 # Building Grid
 
 ## Determining Grid Size
-Nx = 1000
-Ny = 1000
+### Nx2 and Ny2 are 2x grids that will be used only to model the device. 'mu' and 'eps' will be pulled from 2x values
+Nx = 500; Nx2 = 2*Nx
+Ny = 500; Ny2 = 2*Ny
 
 ## Building Grid
 xa = np.linspace(0,Nx-1,Nx)
 ya = np.linspace(0,Ny-1,Ny)
+### Lengths of the PML in the x and y directions
+PML_Lx = np.array([20,20])
+PML_Ly = np.array([20,20])
 X,Y = np.meshgrid(xa,ya)
 
 ## Building device
 #Device_start = 2 + 500                              # 2 cells for source/record, 500 spacers
-#Device_end = Device_start + N_device                # End of device indEy
+#Device_end = Device_start + N_device                # End of device index
 
 ### Mu
 mu_xx = np.ones([Nx,Ny])
@@ -107,10 +111,47 @@ t_sec = np.array(np.arange(0,time_steps+1,1))*dt    # Time array in seconds
 E_source = np.exp(-(((t_sec-t0)/tau)**2))               # Electric field source
 #H_source = H_scale*np.exp(-(((t_sec-t0+H_offset)/tau)**2)) # Magnetic field source
 
+# PML Parameters
+
+
+## Sigma x
+sig_x = np.zeros((Nx2,Ny2))
+for i in range(0,2*PML_Lx[0]):
+    sig_x[2*PML_Lx[0]-i-1,:] = (0.5*e0/dt)*(i/(2*PML_Lx[0]))**3
+for i in range(0,2*PML_Lx[1]):
+    sig_x[Nx2-2*PML_Lx[1]+i,:] = (0.5*e0/dt)*(i/(2*PML_Lx[1]))**3
+
+## Sigma y
+sig_y = np.zeros((Nx2,Ny2))
+for j in range(0,2*PML_Ly[0]):
+    sig_y[:,2*PML_Ly[0]-j-1] = (0.5*e0/dt)*(j/(2*PML_Ly[0]))**3
+for j in range(0,2*PML_Ly[1]):
+    sig_y[:,Ny2-2*PML_Ly[1]+j] = (0.5*e0/dt)*(j/(2*PML_Ly[1]))**3
+
+
 # Update Coefficients
-m_Hx = c0*dt/mu_xx
-m_Hy = c0*dt/mu_yy
-m_Dz = c0*dt
+
+## Hx Coefficients
+sigHx = sig_x[0::2,1::2]; sigHy = sig_y[0::2,1::2]
+m_Hx0 = (1/dt) + sigHy/(2*e0)
+m_Hx1 = ((1/dt) - sigHy/(2*e0))/m_Hx0
+m_Hx2 = - c0/(mu_xx*m_Hx0)
+m_Hx3 = - (c0*dt/e0) * sigHx/(mu_xx*m_Hx0)
+
+## Hy Coefficients
+sigHx = sig_x[1::2,0::2]; sigHy = sig_y[1::2,0::2]
+m_Hy0 = (1/dt) + sigHx/(2*e0)
+m_Hy1 = ((1/dt) - sigHx/(2*e0))/m_Hy0
+m_Hy2 = - c0/(mu_yy*m_Hy0)
+m_Hy3 = - (c0*dt/e0) * sigHy/(mu_yy*m_Hy0)
+
+## Dz Coefficients
+sigDx = sig_x[0::2,0::2]; sigDy = sig_y[0::2,0::2]
+m_Dz0 = (1/dt) + ((sigDx + sigDy)/(2*e0)) + (sigDx*sigDy*dt/(4*(e0**2)))
+m_Dz1 = (1/dt) - ((sigDx + sigDy)/(2*e0)) - (sigDx*sigDy*dt/(4*(e0**2))); m_Dz1 = m_Dz1/m_Dz0
+m_Dz2 = c0/m_Dz0
+m_Dz4 = - (dt/(e0**2))*sigDx*sigDy/m_Dz0
+
 # Note: mu_xx and mu_yy are relative to u0
 
 
@@ -152,8 +193,8 @@ def FDTD_Loop(EzTime,Ez,Dz,CEx,CEy,Hx,Hy,CHz):
         ## Hx and Hy Updates
         for i in range(0,Nx,1):
             for j in range(0,Ny,1):
-                Hx[i,j] = m_Hx1[i,j]*Hx[i,j] - m_Hx2[i,j]*CEx[i,j] - m_Hx3[i,j]*I_CEx[i,j]
-                Hy[i,j] = m_Hy1[i,j]*Hy[i,j] - m_Hy2[i,j]**CEy[i,j] - m_Hy3[i,j]*I_CEy[i,j]
+                Hx[i,j] = m_Hx1[i,j]*Hx[i,j] + m_Hx2[i,j]*CEx[i,j] + m_Hx3[i,j]*I_CEx[i,j]
+                Hy[i,j] = m_Hy1[i,j]*Hy[i,j] + m_Hy2[i,j]*CEy[i,j] + m_Hy3[i,j]*I_CEy[i,j]
         
         # Electric Field Update
 
