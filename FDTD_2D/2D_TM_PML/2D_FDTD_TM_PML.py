@@ -174,7 +174,7 @@ CEx = np.zeros((Nx,Ny)); CEy = np.zeros((Nx,Ny))
 
 # Main FDTD Loop
 @jit(nopython=True)
-def FDTD_Loop(EzTime,Ez,Dz,CEx,CEy,Hx,Hy,CHz):
+def FDTD_Loop(EzTime,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy):
     for t in range(0,time_steps+1,1):
 
         # Magnetic Field Update
@@ -189,6 +189,10 @@ def FDTD_Loop(EzTime,Ez,Dz,CEx,CEy,Hx,Hy,CHz):
             for i in range(0,Nx-1,1):
                 CEy[i,j] = - (Ez[i+1,j] - Ez[i,j])/dx
             CEy[Nx-1,j] = - (0 - Ez[Nx-1,j])/dx
+
+        ## Ex and Ey Integrations
+        I_CEx = I_CEx + CEx
+        I_CEy = I_CEy + CEy
 
         ## Hx and Hy Updates
         for i in range(0,Nx,1):
@@ -209,6 +213,9 @@ def FDTD_Loop(EzTime,Ez,Dz,CEx,CEy,Hx,Hy,CHz):
             CHz[0,j] = (Hy[0,j] - 0)/dx - (Hx[0,j] - Hx[0,j-1])/dy
             for i in range(1,Nx,1):
                 CHz[i,j] = (Hy[i,j] - Hy[i-1,j])/dx - (Hx[i,j] - Hx[i,j-1])/dy
+        
+        ## Dz Integration
+        I_Dz = I_Dz + Dz
 
         ## Dz Field Update
         for i in range(0,Nx,1):
@@ -229,7 +236,7 @@ def FDTD_Loop(EzTime,Ez,Dz,CEx,CEy,Hx,Hy,CHz):
                     EzTime[int(t/10),i,j] = Ez[i,j]
             print(t)
     return
-FDTD_Loop(EzTime,Ez,Dz,CEx,CEy,Hx,Hy,CHz)
+FDTD_Loop(EzTime,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy)
 timer_end = time.time()
 print("Program took:", timer_end-timer_start-timer_delay[2], "seconds.")
 
