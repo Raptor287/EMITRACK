@@ -52,8 +52,8 @@ dx = dy = delta_wave                                     # Temporarily setting d
 # Building Grid
 
 ## Determining Grid Size
-Nx = 500
-Ny = 500
+Nx = 1000
+Ny = 1000
 
 ## Building Grid
 xa = np.linspace(0,Nx-1,Nx)
@@ -224,25 +224,30 @@ plt.show()
 '''
 #%%
 np.save('EzTime_f.npy', EzTime)
+ParamStore = np.array([X,Y,time_steps])
+np.save('ParamStore_f.npy', ParamStore)
 
 x = np.arange(0,Nx*dx,dx)
 
 fps = 30
-duration = time_steps/(fps*10)
-fig, ax = plt.subplots() 
-#ax = fig.add_subplot(111, projection='3d')
-divider = make_axes_locatable(ax)
+duration = time_steps/(fps*10*5)
+fig = plt.figure(figsize=(16,9))
+ax1 = fig.add_subplot(1,1,1)
+divider = make_axes_locatable(ax1)
 cax = divider.append_axes('right', size='5%', pad=0.05)
 
 print(EzTime.shape)
 def make_frame(anim_time):
 
-    time_step = anim_time*fps
+    time_step = anim_time*fps*5
 
-    ax.clear()
-    #ax.plot(x, EzTime[int(time_step),:,49])
-    im = ax.imshow(EzTime[int(time_step),:,:], cmap='jet', vmin=-0.05, vmax=0.05)
-    ax.set_title("Timestep = "+str(round(time_step*10)))
+    ax1.clear()
+    
+    if (time_step <= 20):
+        im = ax1.imshow(EzTime[int(time_step),:,:], cmap='viridis', vmin=-0.05, vmax=0.05)
+    else: 
+        im = ax1.imshow(EzTime[int(time_step),:,:], cmap='viridis', vmin=-0.025, vmax=0.025)
+    ax1.set_title("Timestep = "+str(round(time_step*10)))
     fig.colorbar(im, cax=cax, orientation='vertical')
 
     return mplfig_to_npimage(fig)
