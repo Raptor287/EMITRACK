@@ -1,6 +1,7 @@
 #%%
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 from matplotlib import cm
 import time
 
@@ -22,8 +23,8 @@ e0 = 8.85418782e-12
 u0 = 1.25663706e-6
 z0 = np.sqrt(u0/e0)
 c0 = 299792458
-ur_max = 1.0
-er_max = 1.0
+ur_max = 2.0
+er_max = 6.0
 
 
 # Computing Grid Resolution
@@ -54,7 +55,7 @@ dx = dy = delta_wave                                     # Temporarily setting d
 ## Determining Grid Size
 ### Nx2 and Ny2 are 2x grids that will be used only to model the device. 'mu' and 'eps' will be pulled from 2x values
 Nx = 500; Nx2 = 2*Nx
-Ny = 500; Ny2 = 2*Ny
+Ny = 1000; Ny2 = 2*Ny
 
 ## Building Grid
 xa = np.linspace(0,Nx-1,Nx)
@@ -70,12 +71,13 @@ X,Y = np.meshgrid(xa,ya)
 
 ### Mu
 mu_xx = np.ones([Nx,Ny])
-mu_yy = np.ones([Ny,Ny])
-#mu_xx[Device_start:Device_end] = ur_max             # Array mu_xx contains permeablility across grid
+mu_yy = np.ones([Nx,Ny])
+mu_xx[200:300,500:600] = ur_max             # Array mu_xx contains permeablility across grid
+mu_yy[200:300,500:600] = ur_max
 
 ### Eps
 eps_zz = np.ones([Nx,Ny])
-#eps_yy[Device_start:Device_end] = er_max            # Permittivity across grid
+eps_zz[200:300,500:600] = er_max            # Permittivity across grid
 
 # Note: This is the device. Its simply represented by mu and eps values across the grid
 
@@ -222,7 +224,7 @@ def FDTD_Loop(EzTime,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy):
             for j in range(0,Ny,1):
                 Dz[i,j] = m_Dz1[i,j]*Dz[i,j] + m_Dz2[i,j]*CHz[i,j] + m_Dz4[i,j]*I_Dz[i,j]
         
-        Dz[int(Nx/4),int(Ny/4)] = Dz[int(Nx/4),int(Ny/4)] + E_source[t]
+        Dz[int(Nx/2),int(Ny/4)] = Dz[int(Nx/2),int(Ny/4)] + E_source[t]
 
         ## Ez Field Update
         for i in range(0,Nx,1):
@@ -293,10 +295,12 @@ def make_frame(anim_time):
 
     ax1.clear()
     
-    if (time_step <= 20):
-        im = ax1.imshow(EzTime[int(time_step),:,:], cmap='viridis', vmin=-0.05, vmax=0.05)
+    if (time_step/5 <= 20):
+        im = ax1.imshow(EzTime[int(time_step),:,:], cmap='viridis', vmin=-0.01, vmax=0.01)
     else: 
-        im = ax1.imshow(EzTime[int(time_step),:,:], cmap='viridis', vmin=-0.025, vmax=0.025)
+        im = ax1.imshow(EzTime[int(time_step),:,:], cmap='viridis', vmin=-0.005, vmax=0.005)
+    rect = patches.Rectangle((500, 200), 100, 100, linewidth=1, edgecolor='w', facecolor='none')
+    ax1.add_patch(rect)
     ax1.set_title("Timestep = "+str(round(time_step*10)))
     fig.colorbar(im, cax=cax, orientation='vertical')
 
