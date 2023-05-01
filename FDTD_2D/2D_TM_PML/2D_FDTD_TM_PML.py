@@ -23,14 +23,14 @@ e0 = 8.85418782e-12
 u0 = 1.25663706e-6
 z0 = np.sqrt(u0/e0)
 c0 = 299792458
-ur_max = 2.0
-er_max = 6.0
+ur_max = 1.0
+er_max = 1.0
 
 
 # Computing Grid Resolution
 
 ## Wavelength Resolution
-f_max = 1e8                                         # 100 MHz
+f_max = 32.55e7                                         # 100 MHz
 n_max = np.sqrt(ur_max*er_max)                      # Max refractive index in grid
 wavelength_min = c0/(f_max*n_max)                   # Min wavelength in grid
 N_wave = 20                                         # Wave resolution
@@ -66,18 +66,22 @@ PML_Ly = np.array([20,20])
 X,Y = np.meshgrid(xa,ya)
 
 ## Building device
-#Device_start = 2 + 500                              # 2 cells for source/record, 500 spacers
-#Device_end = Device_start + N_device                # End of device index
+Device_x = 250
+Device_y = 550
+Device_radius = 10 #c0/(f_max)
+
+Pec = np.ones((Nx2,Ny2))
+for i in range(0,Nx2,1):
+    for j in range(0,Ny2,1):
+        if ((i-Device_x)**2+(j-Device_y)**2 <= Device_radius**2):
+            Pec[i,j] = 0
 
 ### Mu
-mu_xx = np.ones([Nx,Ny])
-mu_yy = np.ones([Nx,Ny])
-mu_xx[200:300,500:600] = ur_max             # Array mu_xx contains permeablility across grid
-mu_yy[200:300,500:600] = ur_max
+mu_xx = np.ones((Nx,Ny))
+mu_yy = np.ones((Nx,Ny))
 
 ### Eps
-eps_zz = np.ones([Nx,Ny])
-eps_zz[200:300,500:600] = er_max            # Permittivity across grid
+eps_zz = np.ones((Nx,Ny))
 
 # Note: This is the device. Its simply represented by mu and eps values across the grid
 
@@ -107,11 +111,11 @@ timer_delay[2] = timer_delay[1] - timer_delay[0]
 
 # Source Functions (TF/SF)
 t_sec = np.array(np.arange(0,time_steps+1,1))*dt    # Time array in seconds
-#k_source = 1                                        # Location of pulse, array indEy friendly
-#H_offset = ds/(2*c0) + 0.5*dt                       # (n_source*dz)/(2*c0) + (delta_t/2), 'Hx' source offset due to time/grid offset    
-#H_scale = -np.sqrt(eps_yy[k_source]/mu_xx[k_source])    # -sqrt(e_rel/u_rel), normalization of 'Hx' source due to derivation of update Eqs
-E_source = np.exp(-(((t_sec-t0)/tau)**2))               # Electric field source
-#H_source = H_scale*np.exp(-(((t_sec-t0+H_offset)/tau)**2)) # Magnetic field source
+j_source = PML_Ly[0] + 3                            # Location of pulse, array index friendly
+H_offset = dy/(2*c0) + 0.5*dt                       # (n_source*dz)/(2*c0) + (delta_t/2), 'Hx' source offset due to time/grid offset    
+H_scale = -np.sqrt(eps_zz[int(Nx/2),j_source]/mu_xx[int(Nx/2),j_source])    # -sqrt(e_rel/u_rel), normalization of 'Hx' source due to derivation of update Eqs
+Ez_source = np.exp(-(((t_sec-t0)/tau)**2))          # Electric field source
+Hx_source = H_scale*np.exp(-(((t_sec-t0+H_offset)/tau)**2)) # Magnetic field source
 
 # PML Parameters
 
@@ -169,6 +173,7 @@ CHz = np.zeros((Nx,Ny))
 
 ## Electric Fields
 EzTime = np.zeros((int(time_steps/10)+1,Nx,Ny),dtype=np.single)
+EzReciever = np.zeros(time_steps+1)
 Ez = np.zeros((Nx,Ny)); Dz = np.zeros((Nx,Ny))
 I_Dz = np.zeros((Nx,Ny))
 CEx = np.zeros((Nx,Ny)); CEy = np.zeros((Nx,Ny))
@@ -176,7 +181,7 @@ CEx = np.zeros((Nx,Ny)); CEy = np.zeros((Nx,Ny))
 
 # Main FDTD Loop
 @jit(nopython=True)
-def FDTD_Loop(EzTime,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy):
+def FDTD_Loop(EzTime,EzReciever,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy):
     for t in range(0,time_steps+1,1):
 
         # Magnetic Field Update
@@ -186,6 +191,9 @@ def FDTD_Loop(EzTime,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy):
             for j in range(0,Ny-1,1):
                 CEx[i,j] = (Ez[i,j+1] - Ez[i,j])/dy
             CEx[i,Ny-1] = (0 - Ez[i,Ny-1])/dy
+        
+        for i in range(0,Nx,1):
+            CEx[i,j_source] = CEx[i,j_source] - Ez_source[t]/dy
         
         for j in range(0,Ny,1):
             for i in range(0,Nx-1,1):
@@ -216,6 +224,9 @@ def FDTD_Loop(EzTime,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy):
             for i in range(1,Nx,1):
                 CHz[i,j] = (Hy[i,j] - Hy[i-1,j])/dx - (Hx[i,j] - Hx[i,j-1])/dy
         
+        for i in range(0,Nx,1):
+            CHz[i,j_source] = CHz[i,j_source] - Hx_source[t]/dy
+        
         ## Dz Integration
         I_Dz = I_Dz + Dz
 
@@ -223,13 +234,11 @@ def FDTD_Loop(EzTime,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy):
         for i in range(0,Nx,1):
             for j in range(0,Ny,1):
                 Dz[i,j] = m_Dz1[i,j]*Dz[i,j] + m_Dz2[i,j]*CHz[i,j] + m_Dz4[i,j]*I_Dz[i,j]
-        
-        Dz[int(Nx/2),int(Ny/4)] = Dz[int(Nx/2),int(Ny/4)] + E_source[t]
 
         ## Ez Field Update
         for i in range(0,Nx,1):
             for j in range(0,Ny,1):
-                Ez[i,j] = (1/eps_zz[i,j])*Dz[i,j]
+                Ez[i,j] = Pec[i,j]*(1/eps_zz[i,j])*Dz[i,j]
 
         # Ez Field Storage
         if t%10 == 0:
@@ -237,8 +246,9 @@ def FDTD_Loop(EzTime,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy):
                 for j in range(0,Ny,1):
                     EzTime[int(t/10),i,j] = Ez[i,j]
             print(t)
+        EzReciever[t] = Ez[int(Nx/2),j_source-2]
     return
-FDTD_Loop(EzTime,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy)
+FDTD_Loop(EzTime,EzReciever,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy)
 timer_end = time.time()
 print("Program took:", timer_end-timer_start-timer_delay[2], "seconds.")
 
@@ -246,17 +256,17 @@ print("Program took:", timer_end-timer_start-timer_delay[2], "seconds.")
 #with open("Samples/Timer.txt", "a") as f:
 #    print("Execution on", time.strftime("%d %b %Y at %H:%M:%S took", time.localtime()), timer_end - timer_start, "seconds.", file=f)
 #%%
-'''
+
 # A potential data output method. This plots the magnitude of E at a constant position over time
-plt.plot(t_sec,Ey[:,0], label='Reflected')
-plt.plot(t_sec,Ey[:,-1], label='Transmitted')
+plt.plot(t_sec,EzReciever)
+#plt.plot(t_sec,EzTime[:,int(Nx/2)], label='Transmitted')
 plt.legend()
-plt.title("|E| Over Time at Boundries")
+plt.title("|E| Over Time at Boundry")
 plt.xlabel("Time")
 plt.ylabel("|E|")
 plt.savefig(fname="Ebound_Over_Time_TFSF_Source")
 plt.show()
-'''
+
 '''# Another data output method that calculates the frequencies transmitted and reflected by doing an FFT of Ey at boundries of grid and normalizing to the source
 Freq = np.arange(0,time_steps/2+1)*((1/dt)/time_steps)
 SRC = abs(np.fft.rfft(E_source[:]))
@@ -295,11 +305,11 @@ def make_frame(anim_time):
 
     ax1.clear()
     
-    if (time_step/5 <= 20):
-        im = ax1.imshow(EzTime[int(time_step),:,:], cmap='viridis', vmin=-0.01, vmax=0.01)
-    else: 
-        im = ax1.imshow(EzTime[int(time_step),:,:], cmap='viridis', vmin=-0.005, vmax=0.005)
-    rect = patches.Rectangle((500, 200), 100, 100, linewidth=1, edgecolor='w', facecolor='none')
+    #if (time_step/5 <= 20):
+    #    im = ax1.imshow(EzTime[int(time_step),:,:], cmap='viridis')#, vmin=-0.01, vmax=0.01)
+    #else: 
+    im = ax1.imshow(EzTime[int(time_step),:,:], cmap='viridis', vmin=-1.5, vmax=1.5)
+    rect = patches.Circle((550, 250), 10, linewidth=1, edgecolor='w', facecolor='none')
     ax1.add_patch(rect)
     ax1.set_title("Timestep = "+str(round(time_step*10)))
     fig.colorbar(im, cax=cax, orientation='vertical')

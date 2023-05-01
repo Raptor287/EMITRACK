@@ -37,12 +37,12 @@ def make_frame(anim_time):
 
     if (time_step <= 20):
         im = ax2.imshow(EzTime[int(time_step),:,:], cmap='viridis', norm=colors.CenteredNorm())
-        surf = ax1.plot_surface(X,Y,EzTime[int(time_step),:,:].T, ccount = 100, rcount = 100, cmap=cm.jet, norm=colors.CenteredNorm())
+        surf = ax1.plot_surface(X,Y,EzTime[int(time_step),:,:].T, ccount = 200, rcount = 200, cmap=cm.jet, norm=colors.CenteredNorm())
     else: 
-        im = ax2.imshow(EzTime[int(time_step),:,:], cmap='viridis', norm=colors.CenteredNorm())
-        surf = ax1.plot_surface(X,Y,EzTime[int(time_step),:,:].T, ccount = 100, rcount = 100, cmap=cm.jet, norm=colors.CenteredNorm())
-        ax1.set_zlim(-0.05,0.05)
-    rect = patches.Rectangle((500, 200), 100, 100, linewidth=1, edgecolor='w', facecolor='none')
+        im = ax2.imshow(EzTime[int(time_step),:,:], cmap='viridis', vmin=-1.5, vmax=1.5)
+        surf = ax1.plot_surface(X,Y,EzTime[int(time_step),:,:].T, ccount = 200, rcount = 200, cmap=cm.jet, norm=colors.CenteredNorm())
+        ax1.set_zlim(-1.5, 1.5)
+    rect = patches.Circle((550, 250), 10, linewidth=1, edgecolor='w', facecolor='none')
     ax2.add_patch(rect)
     ax2.set_title("Timestep = "+str(round(time_step*10)))
     fig.colorbar(im, cax=cax, orientation='vertical')
