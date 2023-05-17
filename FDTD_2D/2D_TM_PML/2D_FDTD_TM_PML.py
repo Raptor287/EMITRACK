@@ -16,7 +16,7 @@ from moviepy.video.io.bindings import mplfig_to_npimage
 
 # Timer to measure program Execution time
 timer_start = time.time()
-timer_delay = [0,0,0]                               # delay to compensate for user imput time. First 2 indexes are temp, 3rd stores total delay
+timer_delay = [0,0,0]                               # delay to compensate for user input time. First 2 indexes are temp, 3rd stores total delay
 
 # Constants
 e0 = 8.85418782e-12
@@ -26,34 +26,25 @@ c0 = 299792458
 ur_max = 1.0
 er_max = 1.0
 
+# Radar Params
+f0 = 32.55e7                                        # Radar central freq, 32.55 MHz
+pulse_width = 0.1e-7                                # Width of radar pulse in seconds (normally 5 us, set to 0.01 us for time sake)
 
 # Computing Grid Resolution
 
 ## Wavelength Resolution
-f_max = 32.55e7                                         # 100 MHz
+f_max = 50e7                                        # Can resolve up to 50 MHz
 n_max = np.sqrt(ur_max*er_max)                      # Max refractive index in grid
 wavelength_min = c0/(f_max*n_max)                   # Min wavelength in grid
 N_wave = 20                                         # Wave resolution
 delta_wave = wavelength_min/N_wave                  # Grid resolution from wavelength
-'''
-## Structure Resolution
-N_device = 1                                        # Device's smallest structure resolution
-structure_min = 1                                   # Smallest structure is 1ft = 0.3048m
-delta_device = structure_min/N_device               # Grid resolution from structure
+dx = dy = delta_wave                                
 
-## Initial Grid Resolution
-dz = min(delta_wave,delta_device)                   # Initial res is smaller of wave/struct res
-
-## Snapping Grid to Critical Dimension of Device
-N_device = int(np.ceil(structure_min/dz))           # Number of cells to represent structure is now an integer
-dz = structure_min/N_device                         # dz recalculated with N_device
-'''
-dx = dy = delta_wave                                     # Temporarily setting dz for tests without a device
 
 # Building Grid
 
-## Determining Grid Size
-### Nx2 and Ny2 are 2x grids that will be used only to model the device. 'mu' and 'eps' will be pulled from 2x values
+## Selecting Grid Size
+### Nx2 and Ny2 are 2x grids that are used only to model the device. 'mu' and 'eps' will be pulled from 2x grid
 Nx = 500; Nx2 = 2*Nx
 Ny = 1000; Ny2 = 2*Ny
 
@@ -65,11 +56,13 @@ PML_Lx = np.array([20,20])
 PML_Ly = np.array([20,20])
 X,Y = np.meshgrid(xa,ya)
 
-## Building device
+## Building Device
+### X and Y position of cylinder in number of cells
 Device_x = 250
 Device_y = 550
-Device_radius = 10 #c0/(f_max)
-
+### Cylinder radius in number of cells
+Device_radius = int(np.ceil((c0/(2*np.pi*f0))/dx))           # Note the radius in meters is divided by dx to get the radius in cells rounded up
+### Setting points inside cylinder radius to be perfect conductors
 Pec = np.ones((Nx2,Ny2))
 for i in range(0,Nx2,1):
     for j in range(0,Ny2,1):
@@ -83,8 +76,6 @@ mu_yy = np.ones((Nx,Ny))
 ### Eps
 eps_zz = np.ones((Nx,Ny))
 
-# Note: This is the device. Its simply represented by mu and eps values across the grid
-
 
 # Time Params
 
@@ -93,12 +84,14 @@ tprop = (n_max*Nx*dx)/c0                            # tprop is the approximate t
 
 
 # Pulse Params
-tau = 0.5/f_max                                     # 0.5/fmax, spread of pulse
+
+tau = 2/f_max                                       # 4*0.5/fmax, spread of gaussian profile to ease into pulse
 t0 = 6*tau                                          # Time offset to ease into pulse
 
 
 # Iteration Number Calculation
-sim_time = 12*tau + 5*tprop                         # Total simulation time
+
+sim_time = 12*tau + 5*tprop + pulse_width           # Total simulation time
 time_steps = int(np.ceil((sim_time)/dt))            # time_steps is iterations required to ease into and out of source and propogate accross the grid 5 times.
 timer_delay[0] = time.time()
 cin = input("The calculated timesteps was "+str(time_steps)+". Would you like to use this? (y or new time_steps): ")
@@ -110,15 +103,28 @@ timer_delay[2] = timer_delay[1] - timer_delay[0]
 
 
 # Source Functions (TF/SF)
+
 t_sec = np.array(np.arange(0,time_steps+1,1))*dt    # Time array in seconds
 j_source = PML_Ly[0] + 3                            # Location of pulse, array index friendly
 H_offset = dy/(2*c0) + 0.5*dt                       # (n_source*dz)/(2*c0) + (delta_t/2), 'Hx' source offset due to time/grid offset    
 H_scale = -np.sqrt(eps_zz[int(Nx/2),j_source]/mu_xx[int(Nx/2),j_source])    # -sqrt(e_rel/u_rel), normalization of 'Hx' source due to derivation of update Eqs
-Ez_source = np.exp(-(((t_sec-t0)/tau)**2))          # Electric field source
-Hx_source = H_scale*np.exp(-(((t_sec-t0+H_offset)/tau)**2)) # Magnetic field source
+## Pulse shaping using gaussian to ease in/out of source
+Ez_source_shape = np.exp(-(((t_sec-t0)/tau)**2))
+Hx_source_shape = np.exp(-(((t_sec-t0+H_offset)/tau)**2))
+for t in range(0,time_steps+1,1):
+    if t*dt > t0 and t*dt < t0+pulse_width:
+        Ez_source_shape[t] = 1
+        Hx_source_shape[t] = 1
+    elif t*dt >= t0+pulse_width:
+        Ez_source_shape[t] = np.exp(-(((t_sec[t]-t0-pulse_width)/tau)**2))
+        Hx_source_shape[t] = np.exp(-(((t_sec[t]-t0-pulse_width+H_offset)/tau)**2))
+
+## Source functions
+Ez_source = Ez_source_shape*np.cos(2*np.pi*f0*t_sec)          # Electric field source
+Hx_source = Hx_source_shape*H_scale*np.cos(2*np.pi*f0*(t_sec+H_offset)) # Magnetic field source
+
 
 # PML Parameters
-
 
 ## Sigma x
 sig_x = np.zeros((Nx2,Ny2))
@@ -193,7 +199,7 @@ def FDTD_Loop(EzTime,EzReciever,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy):
             CEx[i,Ny-1] = (0 - Ez[i,Ny-1])/dy
         
         for i in range(0,Nx,1):
-            CEx[i,j_source] = CEx[i,j_source] - Ez_source[t]/dy
+            CEx[i,j_source-1] = CEx[i,j_source-1] - Ez_source[t]/dy
         
         for j in range(0,Ny,1):
             for i in range(0,Nx-1,1):
@@ -246,7 +252,7 @@ def FDTD_Loop(EzTime,EzReciever,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy):
                 for j in range(0,Ny,1):
                     EzTime[int(t/10),i,j] = Ez[i,j]
             print(t)
-        EzReciever[t] = Ez[int(Nx/2),j_source-2]
+        EzReciever[t] = np.sum(Ez[:,PML_Ly[0]+1])
     return
 FDTD_Loop(EzTime,EzReciever,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy)
 timer_end = time.time()
@@ -260,7 +266,6 @@ print("Program took:", timer_end-timer_start-timer_delay[2], "seconds.")
 # A potential data output method. This plots the magnitude of E at a constant position over time
 plt.plot(t_sec,EzReciever)
 #plt.plot(t_sec,EzTime[:,int(Nx/2)], label='Transmitted')
-plt.legend()
 plt.title("|E| Over Time at Boundry")
 plt.xlabel("Time")
 plt.ylabel("|E|")
@@ -286,7 +291,7 @@ plt.show()
 '''
 #%%
 np.save('EzTime_f.npy', EzTime)
-ParamStore = np.array([X,Y,time_steps])
+ParamStore = np.array([X,Y,time_steps,Device_radius])
 np.save('ParamStore_f.npy', ParamStore)
 
 x = np.arange(0,Nx*dx,dx)
@@ -309,7 +314,7 @@ def make_frame(anim_time):
     #    im = ax1.imshow(EzTime[int(time_step),:,:], cmap='viridis')#, vmin=-0.01, vmax=0.01)
     #else: 
     im = ax1.imshow(EzTime[int(time_step),:,:], cmap='viridis', vmin=-1.5, vmax=1.5)
-    rect = patches.Circle((550, 250), 10, linewidth=1, edgecolor='w', facecolor='none')
+    rect = patches.Circle((550, 250), Device_radius, linewidth=1, edgecolor='w', facecolor='none')
     ax1.add_patch(rect)
     ax1.set_title("Timestep = "+str(round(time_step*10)))
     fig.colorbar(im, cax=cax, orientation='vertical')

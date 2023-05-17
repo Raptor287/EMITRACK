@@ -13,7 +13,7 @@ from moviepy.video.io.bindings import mplfig_to_npimage
 EzTime = np.load('EzTime_f.npy')
 ParamStore = np.load('ParamStore_f.npy', allow_pickle=True)
 
-X = ParamStore[0]; Y = ParamStore[1]; time_steps = ParamStore[2]
+X = ParamStore[0]; Y = ParamStore[1]; time_steps = ParamStore[2]; radius = ParamStore[3]
 
 x = np.linspace(0,EzTime.shape[2]-1,EzTime.shape[2])
 
@@ -37,13 +37,13 @@ def make_frame(anim_time):
 
     if (time_step <= 20):
         im = ax2.imshow(EzTime[int(time_step),:,:], cmap='viridis', norm=colors.CenteredNorm())
-        surf = ax1.plot_surface(X,Y,EzTime[int(time_step),:,:].T, ccount = 200, rcount = 200, cmap=cm.jet, norm=colors.CenteredNorm())
+        surf = ax1.plot_surface(X,Y,EzTime[int(time_step),:,:].T, ccount = 100, rcount = 100, cmap=cm.jet, norm=colors.CenteredNorm())
     else: 
-        im = ax2.imshow(EzTime[int(time_step),:,:], cmap='viridis', vmin=-1.5, vmax=1.5)
-        surf = ax1.plot_surface(X,Y,EzTime[int(time_step),:,:].T, ccount = 200, rcount = 200, cmap=cm.jet, norm=colors.CenteredNorm())
+        im = ax2.imshow(EzTime[int(time_step),:,:], cmap='viridis', norm=colors.CenteredNorm())#, vmin=-1.5, vmax=1.5)
+        surf = ax1.plot_surface(X,Y,EzTime[int(time_step),:,:].T, ccount =100, rcount = 100, cmap=cm.jet, norm=colors.CenteredNorm())
         ax1.set_zlim(-1.5, 1.5)
-    rect = patches.Circle((550, 250), 10, linewidth=1, edgecolor='w', facecolor='none')
-    ax2.add_patch(rect)
+    device = patches.Circle((550, 250), radius, linewidth=1, edgecolor='w', facecolor='none')
+    ax2.add_patch(device)
     ax2.set_title("Timestep = "+str(round(time_step*10)))
     fig.colorbar(im, cax=cax, orientation='vertical')
 
