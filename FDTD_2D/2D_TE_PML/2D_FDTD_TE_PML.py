@@ -254,7 +254,7 @@ def FDTD_Loop(ExTime,ExReciever,Ex,Ey,Dx,Dy,CEz,Hz,CHx,CHy,I_CHx,I_CHy,I_Hz):
                 for j in range(0,Ny,1):
                     ExTime[int(t/10),i,j] = Ex[i,j]
             print(t)
-        ExReciever[t] = np.sum(Ex[:,PML_Ly[0]+1])
+        ExReciever[t] = np.sum(Ex[(PML_Lx[0]+2):(Nx-PML_Lx[1]-2),PML_Ly[0]+2])
     return
 FDTD_Loop(ExTime,ExReciever,Ex,Ey,Dx,Dy,CEz,Hz,CHx,CHy,I_CHx,I_CHy,I_Hz)
 timer_end = time.time()
@@ -274,23 +274,6 @@ plt.ylabel("|E|")
 plt.savefig(fname="Ebound_Over_Time_TFSF_Source")
 plt.show()
 
-'''# Another data output method that calculates the frequencies transmitted and reflected by doing an FFT of Ey at boundries of grid and normalizing to the source
-Freq = np.arange(0,time_steps/2+1)*((1/dt)/time_steps)
-SRC = abs(np.fft.rfft(E_source[:]))
-REF = abs(np.fft.rfft(Ey[:,0])); REF = (REF/SRC)**2
-TRN = abs(np.fft.rfft(Ey[:,-1])); TRN = (TRN/SRC)**2
-TOT_TR = REF+TRN
-
-plt.title("Frequency Reflectance and Transmittance")
-plt.plot(Freq,REF*100, label='REF')
-plt.plot(Freq,TRN*100, label='TRN')
-plt.plot(Freq,TOT_TR*100, label='TOT_TR')
-plt.xlim(0,f_max)
-plt.ylim(0,150)
-plt.legend(loc='upper left')
-plt.savefig(fname="Freq_T_and_R")
-plt.show()
-'''
 #%%
 np.save('EzTime_f.npy', ExTime)
 ParamStore = np.array([X,Y,time_steps,Device_radius])
