@@ -39,7 +39,7 @@ wavelength_min = c0/(f_max*n_max)                   # Min wavelength in grid
 N_wave = 20                                         # Wave resolution
 delta_wave = wavelength_min/N_wave                  # Grid resolution from wavelength
 dx = dy = delta_wave                                
-
+print("dx = dy =", delta_wave,"m")
 
 # Building Grid
 
@@ -62,12 +62,16 @@ Device_x = 250
 Device_y = 550
 ### Cylinder radius in number of cells
 Device_radius = int(np.ceil((c0/(2*np.pi*f0))/dx))           # Note the radius in meters is divided by dx to get the radius in cells rounded up
+print("Device radius is:", Device_radius,"cells")
 ### Setting points inside cylinder radius to be perfect conductors
 Pec = np.ones((Nx2,Ny2))
-for i in range(0,Nx2,1):
-    for j in range(0,Ny2,1):
-        if ((i-Device_x)**2+(j-Device_y)**2 <= Device_radius**2):
-            Pec[i,j] = 0
+def Device(Device_radius):
+    for i in range(0,Nx2,1):
+        for j in range(0,Ny2,1):
+            if ((i-Device_x)**2+(j-Device_y)**2 <= Device_radius**2):
+                Pec[i,j] = 0
+    return
+Device(Device_radius)
 
 ### Mu
 mu_xx = np.ones((Nx,Ny))
@@ -252,8 +256,26 @@ def FDTD_Loop(EzTime,EzReciever,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy):
                 for j in range(0,Ny,1):
                     EzTime[int(t/10),i,j] = Ez[i,j]
             print(t)
-        EzReciever[t] = np.sum(Ez[:,PML_Ly[0]+1])
+        EzReciever[t] = np.sum(Ez[(PML_Lx[0]+2):(Nx-PML_Lx[1]-2),PML_Ly[0]+2])
     return
+
+# The below commented segment allows the user to iterate over radii
+'''
+Rad_Recieved = np.array([])
+Rad_Radius = np.array([])
+#plt.plot(Rad_Radius,Rad_Recieved)
+#plt.show()
+while(Device_radius <= 10):
+    FDTD_Loop(EzTime,EzReciever,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy)
+    Rad_Recieved = np.append(Rad_Recieved,np.sum(np.abs(EzReciever[:])))
+    Rad_Radius = np.append(Rad_Radius,Device_radius)
+    print(Rad_Radius,Rad_Recieved)
+    Device_radius += 1
+    Device(Device_radius)
+plt.plot(Rad_Radius,Rad_Recieved, '.')
+plt.show()
+'''
+
 FDTD_Loop(EzTime,EzReciever,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy)
 timer_end = time.time()
 print("Program took:", timer_end-timer_start-timer_delay[2], "seconds.")
@@ -267,9 +289,10 @@ print("Program took:", timer_end-timer_start-timer_delay[2], "seconds.")
 plt.plot(t_sec,EzReciever)
 #plt.plot(t_sec,EzTime[:,int(Nx/2)], label='Transmitted')
 plt.title("|E| Over Time at Boundry")
+plt.annotate("Total Energy Recieved: "+str(round(np.sum(np.abs(EzReciever[:])),5)), xy=(t_sec[int(int(t_sec.shape[0])/2)],EzReciever.max()))
 plt.xlabel("Time")
 plt.ylabel("|E|")
-plt.savefig(fname="Ebound_Over_Time_TFSF_Source")
+plt.savefig(fname="E_bound_Over_Time")
 plt.show()
 
 '''# Another data output method that calculates the frequencies transmitted and reflected by doing an FFT of Ey at boundries of grid and normalizing to the source
