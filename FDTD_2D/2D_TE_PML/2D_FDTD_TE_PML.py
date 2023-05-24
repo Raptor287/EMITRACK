@@ -36,9 +36,10 @@ pulse_width = 0.1e-7                                # Width of radar pulse in se
 f_max = 50e7                                        # Can resolve up to 50 MHz
 n_max = np.sqrt(ur_max*er_max)                      # Max refractive index in grid
 wavelength_min = c0/(f_max*n_max)                   # Min wavelength in grid
-N_wave = 20                                         # Wave resolution
+N_wave = 20                                         # Wave resolution in cells
 delta_wave = wavelength_min/N_wave                  # Grid resolution from wavelength
 dx = dy = delta_wave                                
+print("dx = dy =", delta_wave,"m")
 
 
 # Building Grid
@@ -51,10 +52,10 @@ Ny = 1000; Ny2 = 2*Ny
 ## Building Grid
 xa = np.linspace(0,Nx-1,Nx)
 ya = np.linspace(0,Ny-1,Ny)
+X,Y = np.meshgrid(xa,ya)
 ### Lengths of the PML in the x and y directions
 PML_Lx = np.array([20,20])
 PML_Ly = np.array([20,20])
-X,Y = np.meshgrid(xa,ya)
 
 ## Building Device
 ### X and Y position of cylinder in number of cells
@@ -62,12 +63,16 @@ Device_x = 250
 Device_y = 550
 ### Cylinder radius in number of cells
 Device_radius = int(np.ceil((c0/(2*np.pi*f0))/dx))           # Note the radius in meters is divided by dx to get the radius in cells rounded up
+print("Device radius is:", Device_radius,"cells")
 ### Setting points inside cylinder radius to be perfect conductors
 Pec = np.ones((Nx2,Ny2))
-for i in range(0,Nx2,1):
-    for j in range(0,Ny2,1):
-        if ((i-Device_x)**2+(j-Device_y)**2 <= Device_radius**2):
-            Pec[:,j] = 0
+def Device(Device_radius):
+    for i in range(0,Nx2,1):
+        for j in range(0,Ny2,1):
+            if ((i-Device_x)**2+(j-Device_y)**2 <= Device_radius**2):
+                Pec[:,j] = 0
+    return
+Device(Device_radius)
 
 ### Mu
 mu_zz = np.ones((Nx,Ny))
@@ -265,22 +270,22 @@ print("Program took:", timer_end-timer_start-timer_delay[2], "seconds.")
 #    print("Execution on", time.strftime("%d %b %Y at %H:%M:%S took", time.localtime()), timer_end - timer_start, "seconds.", file=f)
 #%%
 
-# A potential data output method. This plots the magnitude of E at a constant position over time
+# This plots the magnitude of E at a constant position over time
 plt.plot(t_sec,ExReciever)
-#plt.plot(t_sec,EzTime[:,int(Nx/2)], label='Transmitted')
-plt.title("|E| Over Time at Boundry")
+plt.title("|E| Recieved Over Time")
+plt.annotate("Total Energy Recieved: "+str(round(np.sum(np.abs(ExReciever[:])),3)), xy=(t_sec[int(int(t_sec.shape[0])/2)],ExReciever.max()))
 plt.xlabel("Time")
 plt.ylabel("|E|")
 plt.savefig(fname="Ebound_Over_Time_TFSF_Source")
 plt.show()
 
 #%%
+# Saving the EzTime array and some parameters for use in ExTimeAnimation.py
 np.save('EzTime_f.npy', ExTime)
 ParamStore = np.array([X,Y,time_steps,Device_radius])
 np.save('ParamStore_f.npy', ParamStore)
 
-x = np.arange(0,Nx*dx,dx)
-
+# Short preview animation
 fps = 30
 duration = time_steps/(fps*10*5)
 fig = plt.figure(figsize=(16,9))

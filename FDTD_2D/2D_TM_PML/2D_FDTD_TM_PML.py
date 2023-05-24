@@ -28,7 +28,7 @@ er_max = 1.0
 
 # Radar Params
 f0 = 32.55e7                                        # Radar central freq, 32.55 MHz
-pulse_width = 0.1e-7                                # Width of radar pulse in seconds (normally 5 us, set to 0.01 us for time sake)
+pulse_width = 0.1e-7                                # Width of radar pulse in seconds (normally 5 us, set to 0.01 us for time's sake)
 
 # Computing Grid Resolution
 
@@ -36,10 +36,11 @@ pulse_width = 0.1e-7                                # Width of radar pulse in se
 f_max = 50e7                                        # Can resolve up to 50 MHz
 n_max = np.sqrt(ur_max*er_max)                      # Max refractive index in grid
 wavelength_min = c0/(f_max*n_max)                   # Min wavelength in grid
-N_wave = 20                                         # Wave resolution
+N_wave = 20                                         # Wave resolution in cells
 delta_wave = wavelength_min/N_wave                  # Grid resolution from wavelength
 dx = dy = delta_wave                                
 print("dx = dy =", delta_wave,"m")
+
 
 # Building Grid
 
@@ -51,10 +52,10 @@ Ny = 1000; Ny2 = 2*Ny
 ## Building Grid
 xa = np.linspace(0,Nx-1,Nx)
 ya = np.linspace(0,Ny-1,Ny)
+X,Y = np.meshgrid(xa,ya)
 ### Lengths of the PML in the x and y directions
 PML_Lx = np.array([20,20])
 PML_Ly = np.array([20,20])
-X,Y = np.meshgrid(xa,ya)
 
 ## Building Device
 ### X and Y position of cylinder in number of cells
@@ -263,8 +264,6 @@ def FDTD_Loop(EzTime,EzReciever,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy):
 '''
 Rad_Recieved = np.array([])
 Rad_Radius = np.array([])
-#plt.plot(Rad_Radius,Rad_Recieved)
-#plt.show()
 while(Device_radius <= 10):
     FDTD_Loop(EzTime,EzReciever,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy)
     Rad_Recieved = np.append(Rad_Recieved,np.sum(np.abs(EzReciever[:])))
@@ -274,6 +273,7 @@ while(Device_radius <= 10):
     Device(Device_radius)
 plt.plot(Rad_Radius,Rad_Recieved, '.')
 plt.show()
+#quit()
 '''
 
 FDTD_Loop(EzTime,EzReciever,Ez,Dz,CEx,CEy,I_Dz,Hx,Hy,CHz,I_CEx,I_CEy)
@@ -285,40 +285,23 @@ print("Program took:", timer_end-timer_start-timer_delay[2], "seconds.")
 #    print("Execution on", time.strftime("%d %b %Y at %H:%M:%S took", time.localtime()), timer_end - timer_start, "seconds.", file=f)
 #%%
 
-# A potential data output method. This plots the magnitude of E at a constant position over time
+# This plots the magnitude of E at a constant position over time
 plt.plot(t_sec,EzReciever)
-#plt.plot(t_sec,EzTime[:,int(Nx/2)], label='Transmitted')
-plt.title("|E| Over Time at Boundry")
-plt.annotate("Total Energy Recieved: "+str(round(np.sum(np.abs(EzReciever[:])),5)), xy=(t_sec[int(int(t_sec.shape[0])/2)],EzReciever.max()))
+plt.title("|E| Recieved Over Time")
+plt.annotate("Total Energy Recieved: "+str(round(np.sum(np.abs(EzReciever[:])),3)), xy=(t_sec[int(int(t_sec.shape[0])/2)],EzReciever.max()))
+# The total energy is defined here as the sum of the absolute value of the sum of the electric field across a slice spanning the grid co-located with the source introduction 
 plt.xlabel("Time")
 plt.ylabel("|E|")
-plt.savefig(fname="E_bound_Over_Time")
+plt.savefig(fname="E_Recieved_Over_Time")
 plt.show()
 
-'''# Another data output method that calculates the frequencies transmitted and reflected by doing an FFT of Ey at boundries of grid and normalizing to the source
-Freq = np.arange(0,time_steps/2+1)*((1/dt)/time_steps)
-SRC = abs(np.fft.rfft(E_source[:]))
-REF = abs(np.fft.rfft(Ey[:,0])); REF = (REF/SRC)**2
-TRN = abs(np.fft.rfft(Ey[:,-1])); TRN = (TRN/SRC)**2
-TOT_TR = REF+TRN
-
-plt.title("Frequency Reflectance and Transmittance")
-plt.plot(Freq,REF*100, label='REF')
-plt.plot(Freq,TRN*100, label='TRN')
-plt.plot(Freq,TOT_TR*100, label='TOT_TR')
-plt.xlim(0,f_max)
-plt.ylim(0,150)
-plt.legend(loc='upper left')
-plt.savefig(fname="Freq_T_and_R")
-plt.show()
-'''
 #%%
+# Saving the EzTime array and some parameters for use in EzTimeAnimation.py
 np.save('EzTime_f.npy', EzTime)
 ParamStore = np.array([X,Y,time_steps,Device_radius])
 np.save('ParamStore_f.npy', ParamStore)
 
-x = np.arange(0,Nx*dx,dx)
-
+# Short preview animation
 fps = 30
 duration = time_steps/(fps*10*5)
 fig = plt.figure(figsize=(16,9))
