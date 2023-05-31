@@ -127,6 +127,26 @@ for t in range(0,time_steps+1,1):
 ## Source functions
 Ez_source = Ez_source_shape*np.cos(2*np.pi*f0*t_sec)          # Electric field source
 Hx_source = Hx_source_shape*H_scale*np.cos(2*np.pi*f0*(t_sec+H_offset)) # Magnetic field source
+'''
+# Uncomment to plot source functions
+plt.plot(t_sec,Ez_source)
+plt.title("Ez Source")
+plt.xlabel("Time")
+plt.ylabel("|E|")
+plt.savefig(fname="Ez_Source_Profile")
+plt.show()
+plt.plot(t_sec,Hx_source)
+plt.title("Hx Source")
+plt.xlabel("Time")
+plt.ylabel("|E|")
+plt.savefig(fname="Hx_Source_Profile")
+plt.show()
+quit()
+'''
+'''
+print("Ez Source integrated over time:",np.sum(np.abs(Ez_source)))
+quit()
+'''
 
 
 # PML Parameters
